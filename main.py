@@ -87,15 +87,17 @@ K.set_session(sess)
 #In[3]:
 save_run = 0
 
+save_path   = "INSERT_MODEL_PATH_HERE" # file path for saving mtl model for each run
+save_path_2 = "INSERT_RESULTS_PATH_HERE" # file path for saving results for each user
+
 
 file_path       = 'OhioT1DM'    # for clinical data = 'clinical_abc4d'/'Ohio_T1DM'; for simulated data 360d = 'sim_adult360'; for simulated data 180 = 'sim_adult180'
 data_mode       = 'basic'#'basic'
-pred_horizon    = [6, 12]
+pred_horizon    = [6, 12] # prediction horizon [30 mins, 60 mins]
 
 
-ID                = [["563","570","540","544","552","584","596"],["559","575","588","591","567"]]
+ID                = [["563","570","540","544","552","584","596"],["559","575","588","591","567"]] #gender -> [[M],[F]]
 userID            = ["563","570","540","544","552","584","596","559","575","588","591","567"]
-real_fileID = "559"
 
 
 seq_len   = 24 # previous 2 hrs
@@ -104,10 +106,8 @@ out_dim   = 1
 
 # Hyper parameters
 batch_size = 128
-nb_epoch   = 1#200
+nb_epoch   = 200
 
-# Parameters for LSTM network
-nb_lstm_outputs  = 64        # number of hidden units
 
 nb_clusters      = len(ID)
 nb_users         = len(userID)
@@ -138,11 +138,11 @@ if(run_from_file ==0):
             if(data_generator == 'raw'):
                 data_train, ip0 , train_labels, train_timestamps = parseData(file_path, sim_fileID, real_fileID, is_training)
                 df_train = pd.DataFrame(data = data_train, columns=train_labels)
-                # df_train.to_csv("C:/Users/kaise/Projects/ARISES/Datasets/OhioT1DM/Training/processed/" + real_fileID + ".csv")
-                # np.savetxt("C:/Users/kaise/Projects/ARISES/Datasets/OhioT1DM/Training/processed/impute_" + real_fileID + ".csv", ip0, delimiter=",")
+                df_train.to_csv("../OhioT1DM/Training/processed/" + real_fileID + ".csv")
+                np.savetxt("../OhioT1DM/Training/processed/impute_" + real_fileID + ".csv", ip0, delimiter=",")
             else:
-                df_train = pd.read_csv("../Datasets/OhioT1DM/Training/processed/" + real_fileID + ".csv",  sep=',')
-                ip0 = pd.read_csv("../Datasets/OhioT1DM/Training/processed/impute_" + real_fileID + ".csv",  sep=',', header=None)
+                df_train = pd.read_csv("../OhioT1DM/Training/processed/" + real_fileID + ".csv",  sep=',')
+                ip0 = pd.read_csv("../OhioT1DM/Training/processed/impute_" + real_fileID + ".csv",  sep=',', header=None)
 
 
             (X_train_temp, y_train_temp, train_ref) = data_prep_split(df_train, prediction_horizon,data_mode)
@@ -435,7 +435,7 @@ if(run_from_file ==0):
 
 
 #In[5]:
-
+# nuild MTL network for training
 input_shape = (seq_len, input_dim)
 
 opt = Adam(lr=0.00053)
@@ -480,7 +480,6 @@ if(run_from_file == 0):
         y_train_hat += [y_train[:,i]]
     history = model.fit(X_train, y_train_hat, epochs = nb_epoch, batch_size = batch_size, shuffle = False, verbose = 0, validation_split = 0, callbacks=[LossMask])
 
-    save_path = "INSERT_PATH_HERE"
     model.save_weights(save_path + "MTLmodel_" + str(run) + ".h5")
 else:
     loadpath = save_path
@@ -492,295 +491,293 @@ sample_size = 0
 batch_num   = 0
 sample_size_list = []
 
-pred_horizon = [6]
 
-file2 = open('../BGLP2/results/summaryMTL.txt','a')
+file2 = open('../results/summaryMTL.txt','a')
 file2.write("All figures in mg/dL \n\n")
 
-for prediction_horizon in pred_horizon:
-    resRMSE = []
-    resMARD = []
-    RMSE_1 = []
-    MAE_1 = []
-    RMSE_2 = []
-    MAE_2 = []
-    RMSE_3 = []
-    MAE_3 = []
-    RMSE_4 = []
-    MAE_4 = []
-    RMSE_5 = []
-    MAE_5 = []
-    RMSE_6 = []
-    MAE_6 = []
+
+resRMSE = []
+resMARD = []
+RMSE_1 = []
+MAE_1 = []
+RMSE_2 = []
+MAE_2 = []
+RMSE_3 = []
+MAE_3 = []
+RMSE_4 = []
+MAE_4 = []
+RMSE_5 = []
+MAE_5 = []
+RMSE_6 = []
+MAE_6 = []
 
 
-    for run in range(1, 2):#11
+for run in range(1, 2):#11
 
-        nMARD = []
-        nRMSE = []
-        test_ID = ["540","544","552","584","596","567"]
+    nMARD = []
+    nRMSE = []
+    test_ID = ["540","544","552","584","596","567"]
 
-        for real_fileID in test_ID:
+    for real_fileID in test_ID:
 
-            params={'batch_size':batch_size,
-                    'epochs':nb_epoch,
-                    'ID': real_fileID,
-                    'prediction_horizon':prediction_horizon,
-                    'dropout_conv': dropout_conv,
-                    'dropout_fc':dropout_fc,
-                    'dropout_lstm':dropout_lstm,
-                    'experiment_model': experiment_model
-            }
+        params={'batch_size':batch_size,
+                'epochs':nb_epoch,
+                'ID': real_fileID,
+                'prediction_horizon':prediction_horizon,
+                'dropout_conv': dropout_conv,
+                'dropout_fc':dropout_fc,
+                'dropout_lstm':dropout_lstm,
+                'experiment_model': experiment_model
+        }
 
-            # experiment_log.log_parameters(params)
-            data_generator = 'raw'
-            sim_fileID = 3
-            if(data_generator == 'raw'):
+        # experiment_log.log_parameters(params)
+        data_generator = 'raw'
+        sim_fileID = 3
+        if(data_generator == 'raw'):
 
-                is_training = 1
-                data_train, ip0 , train_labels, train_timestamps= parseData(file_path, sim_fileID, real_fileID, is_training)
-                append_train = data_train[-1*(prediction_horizon + 11):, :] #get data from
-                df1   = pd.DataFrame(data = append_train , columns = train_labels)
-                is_training = 0
-                data_test, ip1 , test_labels, test_timestamps= parseData(file_path, sim_fileID, real_fileID, is_training)
-                df2   = pd.DataFrame(data = data_test , columns = test_labels)
-                frames = [df1, df2]
-                df_test = pd.concat(frames)
+            is_training = 1
+            data_train, ip0 , train_labels, train_timestamps= parseData(file_path, sim_fileID, real_fileID, is_training)
+            append_train = data_train[-1*(prediction_horizon + 11):, :] #get data from
+            df1   = pd.DataFrame(data = append_train , columns = train_labels)
+            is_training = 0
+            data_test, ip1 , test_labels, test_timestamps= parseData(file_path, sim_fileID, real_fileID, is_training)
+            df2   = pd.DataFrame(data = data_test , columns = test_labels)
+            frames = [df1, df2]
+            df_test = pd.concat(frames)
 
-                df_test.to_csv("../Datasets/OhioT1DM/Testing/processed/" + real_fileID + ".csv")
-                np.savetxt("../Datasets/OhioT1DM/Testing/processed/impute_" + real_fileID + ".csv", ip1, delimiter=",")
-            else:
-                df_test = pd.read_csv("../Datasets/OhioT1DM/Testing/processed/" + real_fileID + ".csv",  sep=',')
-                ip1 = np.squeeze(pd.read_csv("../Datasets/OhioT1DM/Testing/processed/impute_" + real_fileID + ".csv",  sep=','))
+            df_test.to_csv("../OhioT1DM/Testing/processed/" + real_fileID + ".csv")
+            np.savetxt("../OhioT1DM/Testing/processed/impute_" + real_fileID + ".csv", ip1, delimiter=",")
+        else:
+            df_test = pd.read_csv("../OhioT1DM/Testing/processed/" + real_fileID + ".csv",  sep=',')
+            ip1 = np.squeeze(pd.read_csv("../OhioT1DM/Testing/processed/impute_" + real_fileID + ".csv",  sep=','))
 
-            (X_test, y_test, test_ref) = data_prep_split(df_test, prediction_horizon, data_mode)
+        (X_test, y_test, test_ref) = data_prep_split(df_test, prediction_horizon, data_mode)
 
-            if(real_fileID == "559"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "559"):
+            y_test   = y_test.reshape(len(y_test),1)
 
-            if(real_fileID == "563"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "563"):
+            y_test   = y_test.reshape(len(y_test),1)
 
-            if(real_fileID == "570"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "570"):
+            y_test   = y_test.reshape(len(y_test),1)
 
-            if(real_fileID == "575"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "575"):
+            y_test   = y_test.reshape(len(y_test),1)
 
-            if(real_fileID == "588"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "588"):
+            y_test   = y_test.reshape(len(y_test),1)
 
-            if(real_fileID == "591"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "591"):
+            y_test   = y_test.reshape(len(y_test),1)
 
-            if(real_fileID == "540"):
-                y_test   = y_test.reshape(len(y_test),1)
-
-
-            if(real_fileID == "544"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "540"):
+            y_test   = y_test.reshape(len(y_test),1)
 
 
-            if(real_fileID == "552"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "544"):
+            y_test   = y_test.reshape(len(y_test),1)
 
 
-            if(real_fileID == "567"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "552"):
+            y_test   = y_test.reshape(len(y_test),1)
 
 
-            if(real_fileID == "584"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "567"):
+            y_test   = y_test.reshape(len(y_test),1)
 
 
-            if(real_fileID == "596"):
-                y_test   = y_test.reshape(len(y_test),1)
+        if(real_fileID == "584"):
+            y_test   = y_test.reshape(len(y_test),1)
+
+
+        if(real_fileID == "596"):
+            y_test   = y_test.reshape(len(y_test),1)
 
 
 
-            # load weights from MTL model into STL architecture
-            loadpath = save_path
-            modelSTL = getSTL_model(real_fileID, ID)
+        # load weights from MTL model into STL architecture
+        loadpath = save_path
+        modelSTL = getSTL_model(real_fileID, ID)
 
-            modelSTL.load_weights(loadpath + "MTLmodel_"+ str(run) + ".h5", by_name=True)
+        modelSTL.load_weights(loadpath + "MTLmodel_"+ str(run) + ".h5", by_name=True)
 
 
-            array_len = len(y_test)
-            mreference = np.zeros((array_len,))
-            mmol_curve = np.zeros((array_len,))
-            imp_values = np.zeros((array_len,))
+        array_len = len(y_test)
+        mreference = np.zeros((array_len,))
+        mmol_curve = np.zeros((array_len,))
+        imp_values = np.zeros((array_len,))
 
-            k = prediction_horizon + seq_len - 1
+        k = prediction_horizon + seq_len - 1
 
-            print(real_fileID)
-            if(task_type == 'regression'):
-                for index in range(array_len):
+        print(real_fileID)
+        if(task_type == 'regression'):
+            for index in range(array_len):
 
-                    pred_ind = [modelSTL.predict(X_test[index:(index+1),:,:], batch_size = None)]
+                pred_ind = [modelSTL.predict(X_test[index:(index+1),:,:], batch_size = None)]
 
-                    mmol_curve[index] = (X_test[index,-1,0] + pred_ind[0])
+                mmol_curve[index] = (X_test[index,-1,0] + pred_ind[0])
 
-                    imp_values[index] = mmol_curve[index]
-                    mreference[index] = (test_ref[index])
+                imp_values[index] = mmol_curve[index]
+                mreference[index] = (test_ref[index])
 
-                    m = index + 1
+                m = index + 1
 
-                    if(m >= k):
-                        X_test_ip  = ip1[(m - k) + 12 : (m - k) + 12 + seq_len]
-                        X_test_hat = np.zeros((seq_len,))
-                        mar   = seq_len - np.count_nonzero(X_test_ip)
-                        s     = np.where(X_test_ip == False)
-                        s_inv = np.where(X_test_ip == True)
-                        if(mar != 0):
-                            # model-based imputation
-                            if(mar <= 6):
-                                X_test_hat = imp_values[(m - k) : (m - k) + seq_len]
+                if(m >= k):
+                    X_test_ip  = ip1[(m - k) + 12 : (m - k) + 12 + seq_len]
+                    X_test_hat = np.zeros((seq_len,))
+                    mar   = seq_len - np.count_nonzero(X_test_ip)
+                    s     = np.where(X_test_ip == False)
+                    s_inv = np.where(X_test_ip == True)
+                    if(mar != 0):
+                        # model-based imputation
+                        if(mar <= 6):
+                            X_test_hat = imp_values[(m - k) : (m - k) + seq_len]
+                        else:
+                            s_max = np.max(s)
+                            s_min = np.min(s)
+
+                            if(s_max == seq_len - 1):
+                                # padding imputation (zero-order hold)
+                                X_test_hat[:-1]  = X_test[index:(index+1), 1:,0]
+                                X_test_hat[ -1]  = X_test[index:(index+1),-1, 0]
                             else:
-                                # print(s)
-                                s_max = np.max(s)
-                                s_min = np.min(s)
+                                X_test_hat = X_test[m : m + 1, :, 0][0]
 
-                                if(s_max == seq_len - 1):
-                                    # padding imputation
-                                    X_test_hat[:-1]  = X_test[index:(index+1), 1:,0]
-                                    X_test_hat[ -1]  = X_test[index:(index+1),-1, 0]
-                                else:
-                                    X_test_hat = X_test[m : m + 1, :, 0][0]
-
-                            X_test[m : m + 1, s, 0] = X_test_hat[s]
+                        X_test[m : m + 1, s, 0] = X_test_hat[s]
 
 
 
-                ip_index =  len(ip1) - len(y_test)
+            ip_index =  len(ip1) - len(y_test)
 
-                a =  ip1[ip_index:]
+            a =  ip1[ip_index:]
 
-                timestamp = test_timestamps[real_fileID]
+            timestamp = test_timestamps[real_fileID]
 
-                test_timestamp = np.delete(timestamp, np.where(ip1==False))
-                test_timestamp_m = test_timestamp[12:]
+            test_timestamp = np.delete(timestamp, np.where(ip1==False))
+            test_timestamp_m = test_timestamp[12:]
 
-                mol_curve = 120*np.delete(mmol_curve, np.where(a==False))
-                reference = 120*np.delete(mreference, np.where(a==False))
+            mol_curve = 120*np.delete(mmol_curve, np.where(a==False))
+            reference = 120*np.delete(mreference, np.where(a==False))
 
-                print(len(mol_curve))
+            print(len(mol_curve))
 
-                mol_curve_plot = 120*(np.where(a==False, np.nan, mmol_curve))
-                reference_plot = 120*(np.where(a==False, np.nan, mreference))
+            mol_curve_plot = 120*(np.where(a==False, np.nan, mmol_curve))
+            reference_plot = 120*(np.where(a==False, np.nan, mreference))
 
-                if(run == 2 and ((real_fileID == "596") or (real_fileID == "552"))):
-                    plt.figure(1)
-                    plt.plot(mol_curve_plot, 'r-', reference_plot, 'b--')
+            if(run == 2 and ((real_fileID == "596") or (real_fileID == "552"))):
+                plt.figure(1)
+                plt.plot(mol_curve_plot, 'r-', reference_plot, 'b--')
 
-                    plt.ylabel('Glucose concentration level (mg/dL)')
-                    plt.legend(('Prediction', 'Reference'))
-                    plt.title('A comparison of prediction and reference timeseries')
-                    plt.grid(True)
-                    plt.figure(2)
-                    plt.plot(test_timestamp_m, mol_curve, 'r-', test_timestamp_m, reference, 'b--')
-                    plt.ylabel('Glucose concentration level (mg/dL)')
-                    plt.xlabel('Datetime')
-                    plt.legend(('Prediction', 'Reference'))
-                    plt.grid(True)
-                    plt.figure(3)
-                    plt.plot(mol_curve, 'r-', reference, 'b--')
-                    plt.ylabel('Glucose concentration level (mg/dL)')
-                    plt.legend(('Prediction', 'Reference'))
-                    plt.grid(True)
-                    plt.show()
+                plt.ylabel('Glucose concentration level (mg/dL)')
+                plt.legend(('Prediction', 'Reference'))
+                plt.title('A comparison of prediction and reference timeseries')
+                plt.grid(True)
+                plt.figure(2)
+                plt.plot(test_timestamp_m, mol_curve, 'r-', test_timestamp_m, reference, 'b--')
+                plt.ylabel('Glucose concentration level (mg/dL)')
+                plt.xlabel('Datetime')
+                plt.legend(('Prediction', 'Reference'))
+                plt.grid(True)
+                plt.figure(3)
+                plt.plot(mol_curve, 'r-', reference, 'b--')
+                plt.ylabel('Glucose concentration level (mg/dL)')
+                plt.legend(('Prediction', 'Reference'))
+                plt.grid(True)
+                plt.show()
 
-                save_path_2 = "INSERT_PATH_HERE"
-                file1 = open(save_path_2 + "MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".txt",'a')
-                for u in range(0, len(mol_curve)):
+
+            file1 = open(save_path_2 + "MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".txt",'a')
+            for u in range(0, len(mol_curve)):
+                g = test_timestamp_m[u]
+                t += g.strftime("%m/%d/%Y, %H:%M:%S")
+                file1.write(g.strftime("%m/%d/%Y, %H:%M:%S")+"\t"+str(mol_curve[u]) + "\n")
+
+            ###
+            RMSE = np.sqrt(np.mean((reference - mol_curve)**2))
+            MARD = np.mean(np.abs((reference - mol_curve)))
+            print("MODEL METRICS")
+            print("Regression")
+            print("RMSE: %.2f" % RMSE)
+            print("MARD: %.2f" % MARD)
+
+            metrics = {"RMSE":RMSE, "MARD":MARD}
+            timestep   = np.array(range(len(mol_curve)))
+
+            nRMSE +=[RMSE]
+            nMARD +=[MARD]
+
+            if(real_fileID == '540'):
+                RMSE_1 += [RMSE]
+                MAE_1 += [MARD]
+            elif(real_fileID == '544'):
+                RMSE_2 += [RMSE]
+                MAE_2 +=[MARD]
+            elif(real_fileID == '552'):
+                RMSE_3 += [RMSE]
+                MAE_3 += [MARD]
+            elif(real_fileID == '567'):
+                RMSE_4 += [RMSE]
+                MAE_4 += [MARD]
+            elif(real_fileID == '584'):
+                RMSE_5 += [RMSE]
+                MAE_5 += [MARD]
+            elif(real_fileID == '596'):
+                RMSE_6 += [RMSE]
+                MAE_6 += [MARD]
+            else:
+                print("file_ID error")
+
+
+
+        if(save_run == 1):
+            save_path_3 = "../results/" + str(run) + "/"
+            if(experiment == 'MTL-Personalisation'):
+
+                if(run == 1):
+                    np.savetxt(save_path_3 + str(real_fileID)  + "/MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".csv", reference, delimiter=",")
+                np.savetxt(save_path_3 + str(real_fileID)  + "/MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".csv", mol_curve, delimiter=",")
+                file1 = open(save_path_3 + "MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".txt",'a')
+
+                for u in range(0, len(test_timestamp_m)):
                     g = test_timestamp_m[u]
-                    t += g.strftime("%m/%d/%Y, %H:%M:%S")
+                    print(g.strftime("%m/%d/%Y, %H:%M:%S"))
                     file1.write(g.strftime("%m/%d/%Y, %H:%M:%S")+"\t"+str(mol_curve[u]) + "\n")
 
-                ###
-                RMSE = np.sqrt(np.mean((reference - mol_curve)**2))
-                MARD = np.mean(np.abs((reference - mol_curve)))
-                print("MODEL METRICS")
-                print("Regression")
-                print("RMSE: %.2f" % RMSE)
-                print("MARD: %.2f" % MARD)
+    avRMSE = np.mean(nRMSE)
+    print(avRMSE)
+    avMARD = np.mean(nMARD)
+    print(avMARD)
 
-                metrics = {"RMSE":RMSE, "MARD":MARD}
-                timestep   = np.array(range(len(mol_curve)))
+    resMARD += [avMARD]
+    resRMSE += [avRMSE]
 
-                nRMSE +=[RMSE]
-                nMARD +=[MARD]
+print(resRMSE)
+print(np.mean(resRMSE))
+print(np.std(resRMSE))
+print(np.mean(resMARD))
+print(np.std(resMARD))
 
-                if(real_fileID == '540'):
-                    RMSE_1 += [RMSE]
-                    MAE_1 += [MARD]
-                elif(real_fileID == '544'):
-                    RMSE_2 += [RMSE]
-                    MAE_2 +=[MARD]
-                elif(real_fileID == '552'):
-                    RMSE_3 += [RMSE]
-                    MAE_3 += [MARD]
-                elif(real_fileID == '567'):
-                    RMSE_4 += [RMSE]
-                    MAE_4 += [MARD]
-                elif(real_fileID == '584'):
-                    RMSE_5 += [RMSE]
-                    MAE_5 += [MARD]
-                elif(real_fileID == '596'):
-                    RMSE_6 += [RMSE]
-                    MAE_6 += [MARD]
-                else:
-                    print("file_ID error")
+file2.write("Individual - "+ str(prediction_horizon*5) +" minutes \n\n")
+file2.write("540\n")
+file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_1))+ "±" + "{:.2f}".format(np.std(RMSE_1))+"\n")
+file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_1))+ "±" + "{:.2f}".format(np.std(MAE_1))+"\n")
+file2.write("\n544\n")
+file2.write("544 RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_2))+ "±" + "{:.2f}".format(np.std(RMSE_2))+"\n")
+file2.write("544 MAE:\t"+ "{:.2f}".format(np.mean(MAE_2))+ "±" + "{:.2f}".format(np.std(MAE_2))+"\n")
+file2.write("\n552\n")
+file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_3))+ "±" + "{:.2f}".format(np.std(RMSE_3))+"\n")
+file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_3))+ "±" + "{:.2f}".format(np.std(MAE_3))+"\n")
+file2.write("\n567\n")
+file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_4))+ "±" + "{:.2f}".format(np.std(RMSE_4))+"\n")
+file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_4))+ "±" + "{:.2f}".format(np.std(MAE_3))+"\n")
+file2.write("\n584\n")
+file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_5))+ "±" + "{:.2f}".format(np.std(RMSE_5))+"\n")
+file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_5))+ "±" + "{:.2f}".format(np.std(MAE_5))+"\n")
+file2.write("\n596\n")
+file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_6))+ "±" + "{:.2f}".format(np.std(RMSE_6))+"\n")
+file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_6))+ "±" + "{:.2f}".format(np.std(MAE_6))+"\n")
 
-
-
-            if(save_run == 1):
-                save_path_3 = "../BGLP2/results/" + str(run) + "/"
-                if(experiment == 'MTL-Personalisation'):
-
-                    if(run == 1):
-                        np.savetxt(save_path_3 + str(real_fileID)  + "/MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".csv", reference, delimiter=",")
-                    np.savetxt(save_path_3 + str(real_fileID)  + "/MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".csv", mol_curve, delimiter=",")
-                    file1 = open(save_path_3 + "MTCRNN_" +  real_fileID + "_" + str(prediction_horizon*5) +".txt",'a')
-
-                    for u in range(0, len(test_timestamp_m)):
-                        g = test_timestamp_m[u]
-                        print(g.strftime("%m/%d/%Y, %H:%M:%S"))
-                        file1.write(g.strftime("%m/%d/%Y, %H:%M:%S")+"\t"+str(mol_curve[u]) + "\n")
-
-        avRMSE = np.mean(nRMSE)
-        print(avRMSE)
-        avMARD = np.mean(nMARD)
-        print(avMARD)
-
-        resMARD += [avMARD]
-        resRMSE += [avRMSE]
-
-    print(resRMSE)
-    print(np.mean(resRMSE))
-    print(np.std(resRMSE))
-    print(np.mean(resMARD))
-    print(np.std(resMARD))
-
-    file2.write("Individual - "+ str(prediction_horizon*5) +" minutes \n\n")
-    file2.write("540\n")
-    file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_1))+ "±" + "{:.2f}".format(np.std(RMSE_1))+"\n")
-    file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_1))+ "±" + "{:.2f}".format(np.std(MAE_1))+"\n")
-    file2.write("\n544\n")
-    file2.write("544 RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_2))+ "±" + "{:.2f}".format(np.std(RMSE_2))+"\n")
-    file2.write("544 MAE:\t"+ "{:.2f}".format(np.mean(MAE_2))+ "±" + "{:.2f}".format(np.std(MAE_2))+"\n")
-    file2.write("\n552\n")
-    file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_3))+ "±" + "{:.2f}".format(np.std(RMSE_3))+"\n")
-    file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_3))+ "±" + "{:.2f}".format(np.std(MAE_3))+"\n")
-    file2.write("\n567\n")
-    file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_4))+ "±" + "{:.2f}".format(np.std(RMSE_4))+"\n")
-    file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_4))+ "±" + "{:.2f}".format(np.std(MAE_3))+"\n")
-    file2.write("\n584\n")
-    file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_5))+ "±" + "{:.2f}".format(np.std(RMSE_5))+"\n")
-    file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_5))+ "±" + "{:.2f}".format(np.std(MAE_5))+"\n")
-    file2.write("\n596\n")
-    file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(RMSE_6))+ "±" + "{:.2f}".format(np.std(RMSE_6))+"\n")
-    file2.write("MAE:\t"+ "{:.2f}".format(np.mean(MAE_6))+ "±" + "{:.2f}".format(np.std(MAE_6))+"\n")
-
-    file2.write("\nOverall - "+ str(prediction_horizon*5) +" minutes \n")
-    file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(resRMSE))+ "±" + "{:.2f}".format(np.std(resRMSE))+"\n")
-    file2.write("MAE:\t" +"{:.2f}".format(np.mean(resMARD))+ "±" + "{:.2f}".format(np.std(resMARD))+"\n")
+file2.write("\nOverall - "+ str(prediction_horizon*5) +" minutes \n")
+file2.write("RMSE:\t"+ "{:.2f}".format(np.mean(resRMSE))+ "±" + "{:.2f}".format(np.std(resRMSE))+"\n")
+file2.write("MAE:\t" +"{:.2f}".format(np.mean(resMARD))+ "±" + "{:.2f}".format(np.std(resMARD))+"\n")
