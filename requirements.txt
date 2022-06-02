@@ -39,7 +39,7 @@ heartpy==1.2.6
 hmmlearn==0.2.3
 hrv==0.2.3
 hrv-analysis==1.0.3
-html5lib==0.9999999
+html5lib==0.99999999
 hyperopt==0.1.1
 idna==2.7
 imagesize==1.0.0
